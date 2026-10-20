@@ -47,7 +47,7 @@ of the game implementations to play the rest of the match.
 A critical component of building an effective AI is quantifying the utility of a given board state using static estimation functions. 
 Building upon the basic SEFs provided in morris.py, we implemented an improved suite of heuristic functions (3 for the opening game 
 and 3 for the midgame/endgame). These SEFs were used to create 9 players, these 9 players were tested by being played in real matches against 
-each other. Our final SEF implementations,located in `MiniMaxOpeningImproved.py` and `MiniMaxGameImproved.py`, were found to have contributed 
+each other. Our final SEF implementations, located in `MiniMaxOpeningImproved.py` and `MiniMaxGameImproved.py`, were found to have contributed 
 to the largest number of wins when games were played at depths of 3 and 5.
 
 **Testing**
