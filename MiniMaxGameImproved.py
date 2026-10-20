@@ -1,115 +1,101 @@
 """Improved implementation of MiniMaxGame.py, computes white's maxima move in the fixed midgame/endgame phase."""
 
 import sys
-from cli_helper import (
-            _search, 
-            _run_cli
-)
 from morris import (
-            GenerateMovesMidgameEndgame,
-            GenerateMovesMidgameEndgameBlack,
-            MILLS
+    read_board,
+    write_board,
+    GenerateMovesMidgameEndgame,
+    GenerateMovesMidgameEndgameBlack,
+    MILLS,
+    neighbors
 )
 
-def ImprovedSEFGame_1(board):
-        numWhitePieces = board.count('W')
-        numBlackPieces = board.count('B')
+def ImprovedSEFGame(board):
+    numWhitePieces = board.count('W')
+    numBlackPieces = board.count('B')
     
-        # Terminal state checks (same as baseline)
-        if numBlackPieces <= 2:
-            return 10000
-        elif numWhitePieces <= 2:
-            return -10000
+    if numBlackPieces <= 2:
+        return 10000
+    elif numWhitePieces <= 2:
+        return -10000
     
-        whiteMoves = GenerateMovesMidgameEndgame(board)
-        blackMoves = GenerateMovesMidgameEndgameBlack(board)
+    whiteMoves = GenerateMovesMidgameEndgame(board)
+    blackMoves = GenerateMovesMidgameEndgameBlack(board)
     
-        if len(blackMoves) == 0:
-            return 10000
-        if len(whiteMoves) == 0:
-            return -10000
+    if len(blackMoves) == 0:
+        return 10000
+    if len(whiteMoves) == 0:
+        return -10000
 
-        # Count potential mill setups
-        white2Pieces = 0
-        black2Pieces = 0
-        for mill in MILLS:
-            pieces = [board[i] for i in mill]
+    white2Pieces = 0
+    black2Pieces = 0
+    for mill in MILLS:
+        pieces = [board[i] for i in mill]
         if pieces.count('W') == 2 and pieces.count('x') == 1:
             white2Pieces += 1
         elif pieces.count('B') == 2 and pieces.count('x') == 1:
             black2Pieces += 1
 
-        # Weighted evaluation:
-        # 1000 * Material Difference + 10 * Mobility Difference + 20 * Potential Mill Difference
-        pieceScore = 1000 * (numWhitePieces - numBlackPieces)
-        mobilityScore = 10 * (len(whiteMoves) - len(blackMoves))
-        millSetupScore = 20 * (white2Pieces - black2Pieces)
-
-        return pieceScore + mobilityScore + millSetupScore
-
-def ImprovedSEFGame_2(board):
-    '''SEF that prioritieses reducing the mobility of the opposing player while maximizing that of the active player'''
-    numWhitePieces = board.count('W')
-    numBlackPieces = board.count('B')
-    
-    if numBlackPieces <= 2:
-        return 10000
-    if numWhitePieces <= 2:
-        return -10000
-        
-    whiteMoves = len(GenerateMovesMidgameEndgame(board))
-    blackMoves = len(GenerateMovesMidgameEndgameBlack(board))
-    
-    if blackMoves == 0:
-        return 10000
-    if whiteMoves == 0:
-        return -10000
-        
-    # Heavily weights move restrictions (Mobility Delta)
-    # Penalizes situations where Black has high mobility options
     pieceScore = 1000 * (numWhitePieces - numBlackPieces)
-    mobilityScore = 50 * whiteMoves - 80 * blackMoves
-    
-    return pieceScore + mobilityScore
+    mobilityScore = 10 * (len(whiteMoves) - len(blackMoves))
+    millSetupScore = 20 * (white2Pieces - black2Pieces)
 
-def ImprovedSEFGame_3(board):
-    '''Heuristic which attempts to setup safe mill cycles i.e. mills which it can safely move 1 piece and then move it back to recreate a mill'''
-    numWhitePieces = board.count('W')
-    numBlackPieces = board.count('B')
-    
-    if numBlackPieces <= 2:
-        return 10000
-    if numWhitePieces <= 2:
-        return -10000
+    # 100 * (numWhitePieces - numBlackPieces) + 10 * (len(whiteMoves) - len(blackMoves)) + 20 * (white2Pieces - black2Pieces)
+    return pieceScore + mobilityScore + millSetupScore 
 
-    # Count formed mills that have an adjacent empty spot to open and close
-    whiteActiveMillCycles = 0
-    blackActiveMillCycles = 0
-    
-    for mill in MILLS:
-        pieces = [board[i] for i in mill]
-        if pieces.count('W') == 3:
-            # Check if any piece in the mill has an empty neighbor to slide out to
-            if any(any(board[n] == 'x' for n in neighbors(idx)) for idx in mill):
-                whiteActiveMillCycles += 1
-        elif pieces.count('B') == 3:
-            if any(any(board[n] == 'x' for n in neighbors(idx)) for idx in mill):
-                blackActiveMillCycles += 1
+def MiniMaxGameImproved(board, depth):
+    if not isinstance(board, str) or len(board) != 23 or any(c not in "WBx" for c in board):
+        raise ValueError("board must contain exactly 23 characters from W, B, x")
+    if isinstance(depth, bool) or not isinstance(depth, int) or depth < 0:
+        raise ValueError("depth must be a nonnegative integer")
 
-    pieceScore = 1000 * (numWhitePieces - numBlackPieces)
-    cycleScore = 150 * (whiteActiveMillCycles - blackActiveMillCycles)
-    
-    return pieceScore + cycleScore
+    positions_evaluated = 0
 
+    def evaluate(position):
+        nonlocal positions_evaluated
+        positions_evaluated += 1
+        return ImprovedSEFGame(position), position
 
-def MiniMaxGameImproved(board, depth, evaluation=ImprovedSEFGame):
-        return _search(
-                    board, 
-                    depth,
-                    GenerateMovesMidgameEndgame,
-                    GenerateMovesMidgameEndgame,
-                    evaluation
-                )
+    def visit(position, remaining, maximizing, alpha, beta):
+        if remaining == 0:
+            return evaluate(position)
+        children = GenerateMovesMidgameEndgame(position) if maximizing else GenerateMovesMidgameEndgameBlack(position)
+        if not children:
+            return evaluate(position)
+
+        best_score = float("-inf") if maximizing else float("inf")
+        best_board = None
+        for child in children:
+            score, _ = visit(child, remaining - 1, not maximizing, alpha, beta)
+            better = score > best_score if maximizing else score < best_score
+            if best_board is None or better:
+                best_score = score
+                best_board = child
+        return best_score, best_board
+
+    estimate, best_board = visit(board, depth, True, float("-inf"), float("inf"))
+    return estimate, best_board, positions_evaluated
+
+def main():
+    if len(sys.argv) != 4:
+        print(f"Usage: python {sys.argv[0]} input.txt output.txt depth", file=sys.stderr)
+        return 1
+
+    try:
+        depth = int(sys.argv[3])
+        if depth < 0:
+            raise ValueError("depth must be a nonnegative integer")
+        board = read_board(sys.argv[1])
+        estimate, best_board, count = MiniMaxGameImproved(board, depth)
+        write_board(sys.argv[2], best_board)
+    except (OSError, ValueError, RecursionError) as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+
+    print(f"Board Position: {best_board}")
+    print(f"Positions evaluated by static estimation: {count}")
+    print(f"MINIMAX estimate: {estimate}")
+    return 0
 
 if __name__ == "__main__":
-    sys.exit(_run_cli(MiniMaxGameImproved))
+    sys.exit(main())
