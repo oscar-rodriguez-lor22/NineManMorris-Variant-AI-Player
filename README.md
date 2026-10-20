@@ -16,7 +16,7 @@ midgame and flying phase all playing out in about the same way. This variant mak
 location board, pictured below. The goal is still the same, to create mills, capture the opponent's pieces and ultimately 
 to reduce our opponents to just 2 pieces. Turns are played by passing files with 23 character strings to one of the scripts,
 the script will then use a static estimation function to determine the best turn, play that turn, and return the new board
-into a new file. See [usage](# usage) for more details.
+into a new file. See [usage](#usage) for more details.
 
 ![Variant_board_reference.png](Variant_board_reference.png)
 
